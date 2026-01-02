@@ -1,7 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { SYSTEM_DEFAULT_LOCATION } from '../utils/constants';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+// Fix for leaflet.heat not finding L
+if (typeof window !== 'undefined') {
+    window.L = L;
+}
 import 'leaflet.heat';
 
 const HeatmapLayer = ({ points }) => {
@@ -25,7 +31,17 @@ const HeatmapLayer = ({ points }) => {
     return null;
 };
 
-const PriorityHeatmap = ({ tickets }) => {
+const RecenterAutomatically = ({ center }) => {
+    const map = useMap();
+    useEffect(() => {
+        map.setView(center);
+    }, [center, map]);
+    return null;
+};
+
+const PriorityHeatmap = ({ tickets = [] }) => {
+    const [mapCenter, setMapCenter] = useState(SYSTEM_DEFAULT_LOCATION);
+
     // Convert tickets to [lat, lng, intensity]
     const heatPoints = tickets
         .filter(t => t.location?.lat && t.location?.lng)
@@ -38,16 +54,28 @@ const PriorityHeatmap = ({ tickets }) => {
             return [t.location.lat, t.location.lng, intensity];
         });
 
-    // Default center (Bangalore) or average of points if available
-    const defaultCenter = [12.9716, 77.5946];
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setMapCenter([position.coords.latitude, position.coords.longitude]);
+                },
+                (error) => {
+                    console.error("Error getting location for heatmap:", error);
+                    // Fallback is already set in state
+                }
+            );
+        }
+    }, []);
 
     return (
         <div className="h-full w-full rounded-lg overflow-hidden relative z-0">
-            <MapContainer center={defaultCenter} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+            <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                <RecenterAutomatically center={mapCenter} />
                 <HeatmapLayer points={heatPoints} />
             </MapContainer>
         </div>

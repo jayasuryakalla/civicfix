@@ -14,6 +14,10 @@ router.post('/report', upload.single('image'), reportIssue);
 router.post('/analyze', upload.single('image'), analyzeImage);
 router.get('/', getTickets);
 router.get('/:id', getTicketById);
+router.get('/:id/sla', require('../controllers/ticketController').getTicketSLA);
+router.post('/check-duplicate', require('../controllers/ticketController').checkDuplicate);
+router.put('/:id/upvote', require('../controllers/ticketController').upvoteTicket);
 router.put('/:id/status', updateTicketStatus);
+router.put('/:id/department', require('../controllers/ticketController').updateTicketDepartment);
 
 module.exports = router;

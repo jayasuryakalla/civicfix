@@ -42,7 +42,9 @@ app.get('/', (req, res) => {
 
 // Import Routes (Placeholder)
 app.use('/api/tickets', require('./routes/ticketRoutes'));
-// app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/routing', require('./routes/routingRoutes'));
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
+//app.use('/api/auth', require('./routes/authRoutes'));
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

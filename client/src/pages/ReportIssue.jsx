@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Camera, MapPin, Loader2, UploadCloud, ArrowRight, Wand2, User, Phone, Mail, Navigation } from 'lucide-react';
+import { Camera, MapPin, Loader2, UploadCloud, ArrowRight, Wand2, User, Phone, Mail, Navigation, Search, FileText } from 'lucide-react';
 import axios from 'axios';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import SmartDepartmentRouter from '../components/SmartDepartmentRouter';
+import DuplicateIncidentDetector from '../components/DuplicateIncidentDetector';
 
 // Fix Leaflet Icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -72,8 +74,11 @@ const ReportIssue = () => {
     const [gettingLocation, setGettingLocation] = useState(false);
     const [description, setDescription] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searching, setSearching] = useState(false);
     const [analyzingImg, setAnalyzingImg] = useState(false);
     const [aiAnalysis, setAiAnalysis] = useState(null);
+    const [routerData, setRouterData] = useState(null);
     const [result, setResult] = useState(null);
 
     const fileInputRef = useRef(null);
@@ -107,24 +112,47 @@ const ReportIssue = () => {
 
     const fetchAddress = async (lat, lng) => {
         try {
-            const res = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-            if (res.data && res.data.display_name) {
+            const res = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`);
+            if (res.data) {
                 setAddress(res.data.display_name);
-                // Mock Zone Logic based on basic quadrants (relative to center)
-                // In prod, use point-in-polygon with actual zone boundaries
-                const latCenter = 20.0;
-                const lngCenter = 78.0;
-                let detectedZone = 'Central Zone';
-                if (lat > latCenter && lng > lngCenter) detectedZone = 'North-East Zone';
-                else if (lat > latCenter && lng < lngCenter) detectedZone = 'North-West Zone';
-                else if (lat < latCenter && lng > lngCenter) detectedZone = 'South-East Zone';
-                else detectedZone = 'South-West Zone';
+
+                // Extract zone from address details
+                const addr = res.data.address || {};
+                const detectedZone = addr.suburb ||
+                    addr.city_district ||
+                    addr.neighbourhood ||
+                    addr.village ||
+                    addr.town ||
+                    addr.city ||
+                    "General Zone";
 
                 setZone(detectedZone);
             }
         } catch (error) {
             console.error("Geocoding failed", error);
             setAddress("Address not found");
+            setZone("Unknown Zone");
+        }
+    };
+
+    const handleSearch = async () => {
+        if (!searchQuery) return;
+        setSearching(true);
+        try {
+            const res = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}`);
+            if (res.data && res.data.length > 0) {
+                const { lat, lon } = res.data[0];
+                const newLat = parseFloat(lat);
+                const newLng = parseFloat(lon);
+                setLocation({ lat: newLat, lng: newLng });
+                fetchAddress(newLat, newLng);
+            } else {
+                alert("Location not found");
+            }
+        } catch (error) {
+            console.error("Search failed", error);
+        } finally {
+            setSearching(false);
         }
     };
 
@@ -158,14 +186,19 @@ const ReportIssue = () => {
         formData.append('image', file);
 
         try {
-            const res = await axios.post('http://localhost:5000/api/tickets/analyze', formData, {
+            const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/tickets/analyze`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             const analysis = res.data.data;
+            console.log("API Analysis Result:", analysis); // Debug Log
             if (analysis) {
                 setAiAnalysis(analysis);
                 // Auto-fill description if empty
-                if (!description) setDescription(analysis.description);
+                if (!description) {
+                    const generatedDesc = analysis.issueDescription || analysis.description;
+                    console.log("Setting description to:", generatedDesc); // Debug Log
+                    setDescription(generatedDesc);
+                }
             }
         } catch (err) {
             console.error("Analysis failed:", err);
@@ -199,8 +232,12 @@ const ReportIssue = () => {
         formData.append('lng', location.lng);
         formData.append('address', address || "Pinned Location");
 
+        if (routerData) {
+            formData.append('routingData', JSON.stringify(routerData));
+        }
+
         try {
-            const res = await axios.post('http://localhost:5000/api/tickets/report', formData, {
+            const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/tickets/report`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             setResult(res.data.data);
@@ -220,8 +257,13 @@ const ReportIssue = () => {
                 </div>
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">Report Submitted!</h2>
                 <div className="text-slate-500 mb-8 space-y-1">
-                    <p>Ticket ID: <span className="font-mono bg-slate-100 px-2 py-1 rounded font-bold">{result.ticketId}</span></p>
+                    <p>Ticket ID: <span className="font-mono bg-slate-100 px-2 py-1 rounded font-bold">{result.ticketId || result._id}</span></p>
                     <p className="text-sm">Assigned to: <span className="font-semibold text-civic-600">{result.department?.name || "General"} Dept.</span></p>
+                    {result.sla?.expectedResolutionDate && (
+                        <p className="text-sm mt-1">Expected Resolution: <span className="font-semibold text-slate-700">
+                            {new Date(result.sla.expectedResolutionDate).toLocaleDateString()}
+                        </span></p>
+                    )}
                 </div>
 
                 <div className="bg-white border border-slate-200 rounded-xl p-6 w-full max-w-md shadow-sm text-left space-y-4">
@@ -310,6 +352,27 @@ const ReportIssue = () => {
                 <h3 className="font-semibold text-slate-800 flex items-center justify-between">
                     <div className="flex items-center gap-2"><MapPin size={18} /> Location</div>
                 </h3>
+
+                <div className="flex gap-2 mb-3">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-3 text-slate-400" size={16} />
+                        <input
+                            type="text"
+                            placeholder="Search location (e.g. MG Road, Hyderabad)"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-civic-500 transition-all outline-none"
+                        />
+                    </div>
+                    <button
+                        onClick={handleSearch}
+                        disabled={searching || !searchQuery}
+                        className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                        {searching ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
+                    </button>
+                </div>
 
                 <div className="flex gap-3 mb-2">
                     <button
@@ -431,7 +494,7 @@ const ReportIssue = () => {
             {/* Step 3: Additional Details */}
             <div className="space-y-4">
                 <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                    <MapPin size={18} /> Location & Details
+                    <FileText size={18} /> Description
                 </h3>
 
                 <textarea
@@ -439,6 +502,17 @@ const ReportIssue = () => {
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Description (Optional, AI will generate one)"
                     className="w-full p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-civic-500 min-h-[100px] text-sm"
+                />
+
+                <DuplicateIncidentDetector
+                    description={description}
+                    location={location}
+                />
+
+                <SmartDepartmentRouter
+                    description={description}
+                    location={location}
+                    onAnalysisComplete={setRouterData}
                 />
             </div>
 

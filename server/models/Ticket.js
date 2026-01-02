@@ -30,6 +30,13 @@ const TicketSchema = new mongoose.Schema({
         description: String, // AI refined description
         confidence: Number
     },
+    smartRouting: {
+        recommendedDepartment: String,
+        confidence: Number,
+        reasoning: String,
+        priority: String,
+        routingMethod: String
+    },
     location: {
         lat: Number,
         lng: Number,
@@ -37,7 +44,9 @@ const TicketSchema = new mongoose.Schema({
     },
     department: {
         name: String,
-        assignedAt: Date
+        assignedAt: Date,
+        isOverridden: { type: Boolean, default: false },
+        overrideReason: String
     },
     status: {
         type: String,
@@ -46,7 +55,9 @@ const TicketSchema = new mongoose.Schema({
     },
     sla: {
         expectedResolutionDate: Date,
-        breachWarning: Boolean
+        breachWarning: Boolean,
+        policyReference: String, // e.g. "Section 1.a"
+        policyDurationHours: Number
     },
     duplicateOf: {
         type: mongoose.Schema.Types.ObjectId,
@@ -55,6 +66,10 @@ const TicketSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
+    },
+    upvotes: {
+        type: Number,
+        default: 0
     }
 });
 

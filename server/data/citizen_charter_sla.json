@@ -1,0 +1,62 @@
+[
+  {
+    "id": "SLA-001",
+    "category": "Infrastructure",
+    "issueType": "Pothole",
+    "sectionReference": "Section 1.a (Road Maintenance)",
+    "description": "Repair of potholes on municipal roads.",
+    "slaDuration": 72,
+    "slaUnit": "hours",
+    "text": "Potholes on all major and minor municipal roads shall be repaired within 72 working hours (3 days) of reporting."
+  },
+  {
+    "id": "SLA-002",
+    "category": "Infrastructure",
+    "issueType": "Streetlight",
+    "sectionReference": "Section 2.b (Electrical Works)",
+    "description": "Repair or replacement of non-functional streetlights.",
+    "slaDuration": 48,
+    "slaUnit": "hours",
+    "text": "Complaints regarding non-functional streetlights must be resolved within 48 working hours. Pole replacement may take up to 7 working days."
+  },
+  {
+    "id": "SLA-003",
+    "category": "Sanitation",
+    "issueType": "Garbage Dump",
+    "sectionReference": "Section 3.a (Waste Management)",
+    "description": "Clearance of uncollected garbage or illegal dumping.",
+    "slaDuration": 24,
+    "slaUnit": "hours",
+    "text": "Uncollected garbage or reports of illegal dumping sites must be cleared within 24 hours of the complaint being lodged."
+  },
+  {
+    "id": "SLA-004",
+    "category": "Water Supply",
+    "issueType": "Pipe Leakage",
+    "sectionReference": "Section 4.c (Water Works)",
+    "description": "Repair of visible water pipe leakage.",
+    "slaDuration": 24,
+    "slaUnit": "hours",
+    "text": "Visible water pipe leakages involving wastage of drinking water must be attended to and fixed within 24 hours."
+  },
+  {
+    "id": "SLA-005",
+    "category": "Sanitation",
+    "issueType": "Dead Animal",
+    "sectionReference": "Section 3.d (Waste Management)",
+    "description": "Removal of dead animals from public spaces.",
+    "slaDuration": 12,
+    "slaUnit": "hours",
+    "text": "Carcasses of small or large animals on public roads or spaces must be removed within 12 hours of reporting."
+  },
+  {
+    "id": "SLA-006",
+    "category": "Public Safety",
+    "issueType": "Fallen Tree",
+    "sectionReference": "Section 5.a (Parks & Gardens / Safety)",
+    "description": "Removal of fallen trees blocking roads.",
+    "slaDuration": 6,
+    "slaUnit": "hours",
+    "text": "Fallen trees blocking traffic or causing immediate danger must be removed or moved to the side within 6 hours. Complete clearance within 24 hours."
+  }
+]

@@ -27,7 +27,7 @@ const AdminReportDetails = () => {
 
     const fetchTicketDetails = async () => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/tickets/${id}`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/tickets/${id}`);
             setTicket(res.data);
         } catch (err) {
             console.error("Error fetching ticket:", err);
@@ -40,12 +40,37 @@ const AdminReportDetails = () => {
     const handleStatusUpdate = async (newStatus) => {
         setUpdating(true);
         try {
-            const res = await axios.put(`http://localhost:5000/api/tickets/${id}/status`, { status: newStatus });
+            const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/tickets/${id}/status`, { status: newStatus });
             setTicket(res.data.data);
             // alert("Status updated successfully");
         } catch (err) {
             console.error("Error updating status:", err);
             alert("Failed to update status");
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleDepartmentOverride = async () => {
+        const select = document.getElementById('dept-override-select');
+        const newDept = select.value;
+
+        if (newDept === ticket.department?.name) return;
+
+        const reason = prompt("Enter reason for overriding department:", "Incorrect classification");
+        if (!reason) return;
+
+        setUpdating(true);
+        try {
+            const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/tickets/${id}/department`, {
+                department: newDept,
+                reason: reason
+            });
+            setTicket(res.data.data);
+            alert("Department updated successfully");
+        } catch (err) {
+            console.error("Error updating department:", err);
+            alert("Failed to update department");
         } finally {
             setUpdating(false);
         }
@@ -96,11 +121,138 @@ const AdminReportDetails = () => {
                                 <option value="Open">Open</option>
                                 <option value="In Progress">In Progress</option>
                                 <option value="Resolved">Resolved</option>
-                                <option value="Rejected">Rejected</option>
                             </select>
                             {updating && <Loader2 className="animate-spin text-civic-600" size={16} />}
                         </div>
                     </div>
+
+                    {/* SLA & Timeline Info */}
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                            <Clock size={18} /> Service Level Agreement
+                        </h4>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                                <span className="text-sm text-slate-500">Expected Resolution</span>
+                                <span className="text-sm font-bold text-slate-900">
+                                    {ticket.sla?.expectedResolutionDate
+                                        ? new Date(ticket.sla.expectedResolutionDate).toLocaleDateString(undefined, {
+                                            weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+                                        })
+                                        : "N/A"}
+                                </span>
+                            </div>
+
+                            {ticket.sla?.policyReference && (
+                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <p className="text-xs font-semibold text-blue-800 uppercase mb-1">Official Policy Reference</p>
+                                    <p className="text-sm text-blue-900 line-clamp-2">
+                                        {ticket.sla.policyReference} ({ticket.sla.policyDurationHours} Hours)
+                                    </p>
+                                    <p className="text-xs text-blue-600 mt-1 italic">
+                                        "{ticket.sla.explanation || 'Based on Citizen Charter'}"
+                                    </p>
+                                </div>
+                            )}
+
+                            {ticket.sla?.breachWarning && (
+                                <div className="flex items-center gap-2 text-red-600 text-xs font-bold bg-red-50 p-2 rounded">
+                                    <AlertTriangle size={14} /> Warning: SLA Breached
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Department Assignment Info */}
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                            <CheckCircle2 size={18} /> Department Assignment
+                        </h4>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="text-sm font-medium text-slate-500">Assigned Department</span>
+                                <span className="text-sm font-bold text-civic-700">{ticket.department?.name || "Unassigned"}</span>
+                            </div>
+
+                            {ticket.department?.assignedAt && (
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-slate-500">Has been Assigned on</span>
+                                    <span className="font-medium text-slate-700">{new Date(ticket.department.assignedAt).toLocaleString()}</span>
+                                </div>
+                            )}
+
+                            {ticket.department?.isOverridden && (
+                                <div className="bg-amber-50 text-amber-800 text-xs p-3 rounded-lg border border-amber-100 flex items-start gap-2">
+                                    <AlertTriangle size={14} className="mt-0.5" />
+                                    <div>
+                                        <span className="font-bold">Overridden by Admin</span>
+                                        <p className="mt-0.5 italic">" Reason: {ticket.department.overrideReason} "</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Reporter Info */}
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                            <User size={18} /> Reporter Details
+                        </h4>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                <span className="text-sm text-slate-500">Name</span>
+                                <span className="text-sm font-medium text-slate-900">{ticket.reporter?.name || "Anonymous"}</span>
+                            </div>
+                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                <span className="text-sm text-slate-500">Contact</span>
+                                <span className="text-sm font-medium text-slate-900">{ticket.reporter?.contact || "N/A"}</span>
+                            </div>
+                            {ticket.reporter?.email && (
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-slate-500">Email</span>
+                                    <span className="text-sm font-medium text-slate-900">{ticket.reporter.email}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Smart Routing Info */}
+                    {ticket.smartRouting?.recommendedDepartment && (
+                        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-civic-500">
+                            <h4 className="font-semibold text-slate-800 mb-2 flex items-center justify-between">
+                                <span>Smart Routing Analysis</span>
+                                <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded">
+                                    Confidence: {(ticket.smartRouting.confidence * 100).toFixed(0)}%
+                                </span>
+                            </h4>
+                            <p className="text-sm text-slate-600 italic mb-4">"{ticket.smartRouting.reasoning}"</p>
+
+                            <div className="flex items-center gap-4">
+                                <label className="text-sm font-bold text-slate-700">Assigned Dept:</label>
+                                <select
+                                    id="dept-override-select"
+                                    className="flex-1 bg-white border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-civic-500 focus:border-civic-500 p-2"
+                                    defaultValue={ticket.department?.name}
+                                >
+                                    <option value={ticket.department?.name}>{ticket.department?.name}</option>
+                                    <option value="Roads & Infrastructure">Roads & Infrastructure</option>
+                                    <option value="Sanitation & Waste">Sanitation & Waste</option>
+                                    <option value="Water Supply">Water Supply</option>
+                                    <option value="Electrical">Electrical</option>
+                                    <option value="Public Safety">Public Safety</option>
+                                    <option value="Health">Health</option>
+                                    <option value="Transport">Transport</option>
+                                </select>
+                                <button
+                                    onClick={handleDepartmentOverride}
+                                    disabled={updating}
+                                    className="text-xs bg-civic-600 text-white px-3 py-2 rounded font-medium hover:bg-civic-700 disabled:opacity-50"
+                                >
+                                    Override
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Description Card */}
                     <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -110,10 +262,10 @@ const AdminReportDetails = () => {
                         <p className="text-slate-600 leading-relaxed">
                             {ticket.userDescription || "No description provided by user."}
                         </p>
-                        {ticket.aiAnalysis?.description && (
+                        {ticket.aiAnalysis?.issueDescription && (
                             <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
                                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">AI Analysis</span>
-                                <p className="text-sm text-slate-600">{ticket.aiAnalysis.description}</p>
+                                <p className="text-sm text-slate-600">{ticket.aiAnalysis.issueDescription}</p>
                             </div>
                         )}
                     </div>
